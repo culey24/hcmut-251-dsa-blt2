@@ -45,6 +45,8 @@ class AVLTree {
         AVLNode* rotateLeft(AVLNode*& node);
         void clearHelper(AVLNode* node);
 
+        AVLNode* insertHelper(AVLNode*& node, const K& key, const T& value);
+
     public:
         AVLTree();
         ~AVLTree();
