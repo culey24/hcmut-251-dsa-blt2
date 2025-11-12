@@ -31,7 +31,7 @@ class AVLTree {
             AVLNode* pLeft;
             AVLNode* pRight;
             BalanceValue balance;
-
+            
             AVLNode(const K& key, const T& value)
                 : key(key), data(value), pLeft(nullptr), pRight(nullptr), balance(EH) {}
                 
@@ -45,8 +45,13 @@ class AVLTree {
         AVLNode* rotateLeft(AVLNode*& node);
         void clearHelper(AVLNode* node);
 
-        AVLNode* insertHelper(AVLNode*& node, const K& key, const T& value);
-
+        // MANUALLY DEFINED FUNCTIONS 
+        AVLNode* balanceLeftHeavyCase(AVLNode*& node, bool& broIsTaller);
+        AVLNode* balanceRightHeavyCase(AVLNode*& node, bool& broIsTaller);
+        AVLNode* removeBalanceLeft(AVLNode*& node, bool& broIsShorter);
+        AVLNode* removeBalanceRight(AVLNode*& node, bool& broIsShorter);
+        AVLNode* insertHelper(AVLNode*& node, const K& key, const T& value, bool& broIsTaller); 
+        AVLNode* removeHelper(AVLNode* node, const K& key, bool& broIsShorter);
     public:
         AVLTree();
         ~AVLTree();
@@ -65,6 +70,9 @@ class AVLTree {
         void inorderTraversal(void (*action)(const T&)) const;
 
         AVLNode* getRoot() const { return root; }
+
+        // MANUALLY DEFINED FUNCTIONS 
+
 };
 
 enum Color { RED, BLACK };

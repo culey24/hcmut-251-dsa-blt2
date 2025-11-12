@@ -67,8 +67,6 @@ void AVLTree<K, T>::printTreeStructure() const
     }
 }
 
-// TODO: Implement all AVLTree<K, T> methods here
-
 template<class K, class T> 
 typename AVLTree<K, T>::AVLNode *AVLTree<K, T>::rotateRight(AVLNode *&node) {
     AVLNode* newRoot = node->pLeft;
@@ -86,6 +84,170 @@ typename AVLTree<K, T>::AVLNode *AVLTree<K, T>::rotateLeft(AVLNode *&node) {
 }
 
 template<class K, class T>
+typename AVLTree<K, T>::AVLNode *AVLTree<K, T>::balanceLeftHeavyCase(AVLNode*& node, bool& broIsTaller) {
+    /*
+        Balance the node that have become Left-Heavy case after insertion has performed on AVL tree.    
+        broIsTaller is to improve time complexity, 
+    */
+    AVLNode* leftChild = node->pLeft;
+
+    // Case 1: ll case
+    if (leftChild->balance == LH) {
+        node->balance = EH;
+        leftChild->balance = EH;
+        node = rotateRight(node);
+    }
+    // Case 2: lr case
+    else {
+        AVLNode* rightOfLeftChild = leftChild->pRight;
+        if (rightOfLeftChild->balance == LH) {
+            node->balance = RH;
+            leftChild->balance = EH;
+            rightOfLeftChild->balance = EH;
+        }
+        else if (rightOfLeftChild->balance == RH) {
+            node->balance = EH;
+            leftChild->balance = LH; 
+            rightOfLeftChild->balance = EH;
+        }
+        else {
+            node->balance = EH;
+            leftChild->balance = EH;
+            rightOfLeftChild->balance = EH;
+        }
+        node->pLeft = rotateLeft(leftChild);
+        node = rotateRight(node);
+    }
+    broIsTaller = false;
+    return node;
+}
+
+template<class K, class T>
+typename AVLTree<K, T>::AVLNode *AVLTree<K, T>::balanceRightHeavyCase(AVLNode*& node, bool& broIsTaller) {
+    /*(
+    Similar to above functions, but right 
+    )*/
+    AVLNode* rightChild = node->pRight;
+    // Case 1: rr
+    if (rightChild->balance == RH) {
+        node->balance = EH;
+        rightChild->balance = EH;
+        node = rotateLeft(node);
+    }
+    // Case 2: rl
+    else {
+        AVLNode* leftOfRightChild = rightChild->pLeft;
+        if (leftOfRightChild->balance == RH) {
+            node->balance = LH;
+            rightChild->balance = EH;
+            leftOfRightChild->balance = EH;
+        }
+        else if (leftOfRightChild->balance == LH) {
+            node->balance = EH;
+            rightChild->balance = RH;
+            leftOfRightChild->balance = EH;
+        }
+        else {
+            node->balance = EH;
+            rightChild->balance = EH;
+            leftOfRightChild->balance = EH;
+        }
+        node->pRight = rotateRight(rightChild);
+        node = rotateLeft(node);
+    }
+    broIsTaller = false;
+    return node;
+}
+
+template <class K, class T>
+typename AVLTree<K, T>::AVLNode* AVLTree<K, T>:: removeBalanceLeft(AVLNode*& node, bool& broIsShorter) {
+    if (node->balance == LH) node->balance = EH;
+    else if (node->balance == EH) {
+        node->balance = RH;
+        broIsShorter = false;
+    }
+    else {
+        AVLNode* rightChild = node->pRight;
+        if (rightChild->balance == RH) {
+            node->balance = EH;
+            rightChild->balance = EH;
+            node = rotateLeft(node);
+        }
+        else if (rightChild->balance == EH) {
+            node->balance = RH;
+            rightChild->balance = LH;
+            node = rotateLeft(node);
+            broIsShorter = false;
+        }
+        else {
+            AVLNode* leftOfRightChild = rightChild->pLeft;
+            if (leftOfRightChild->balance == RH) {
+                node->balance = LH;
+                rightChild->balance = EH;
+                leftOfRightChild->balance = EH;
+            }
+            else if (leftOfRightChild->balance == LH) {
+                node->balance = LH;
+                rightChild->balance = RH;
+                leftOfRightChild->balance = EH;
+            }
+            else {
+                node->balance = EH;
+                rightChild->balance = EH;
+                leftOfRightChild->balance = EH;
+            }
+            node->pRight = rotateRight(rightChild);
+            node = rotateLeft(node);
+        }
+    }
+    return node;
+}
+
+template <class K, class T>
+typename AVLTree<K, T>::AVLNode* AVLTree<K, T>:: removeBalanceRight(AVLNode*& node, bool& broIsShorter) {
+    if (node->balance == RH) node->balance = EH;
+    else if (node->balance == EH) {
+        node->balance = LH;
+        broIsShorter = false;
+    }
+    else {
+        AVLNode* leftChild = node->pLeft;
+        if (leftChild->balance == LH) {
+            node->balance = EH;
+            leftChild->balance = EH;
+            node = rotateRight(node);
+        }
+        else if (leftChild->balance == EH) {
+            node->balance = LH;
+            leftChild->balance = RH;
+            node = rotateRight(node);
+            broIsShorter = false;
+        }
+        else {
+            AVLNode* rightOfLeftChild = leftChild->pRight;
+            if (rightOfLeftChild->balance == LH) {
+                node->balance = RH;
+                leftChild->balance = EH;
+                rightOfLeftChild->balance = EH;
+            }
+            else if (rightOfLeftChild->balance == RH) {
+                node->balance = EH;
+                leftChild->balance = LH;
+                rightOfLeftChild->balance = EH;
+            }
+            else {
+                node->balance = EH;
+                leftChild->balance = EH;
+                rightOfLeftChild->balance = EH;
+            }
+            node->pLeft = rotateLeft(leftChild);
+            node = rotateRight(node);
+        }
+    }
+    return node;
+}
+
+template<class K, class T>
 AVLTree<K, T>::AVLTree() : root(nullptr) {}
 
 template <class K, class T>
@@ -94,24 +256,57 @@ AVLTree<K, T>::~AVLTree() {
 }
 
 template <class K, class T>
-typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::insertHelper(AVLNode*& node, const K& key, const T& value) {
-    if (node == nullptr) return new AVLNode(key, value);
+typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::insertHelper(AVLNode*& node, const K& key, const T& value, bool& broIsTaller) {
+    if (node == nullptr) {
+        broIsTaller = true;
+        return new AVLNode(key, value);
+    }
     if (key < node->key) {
-        node->pLeft = insertHelper(node->pLeft);
+        node->pLeft = insertHelper(node->pLeft, key, value, broIsTaller);
+        if (broIsTaller) {
+            if (node->balance == LH) node = balanceLeftHeavyCase(node, broIsTaller);
+            else if (node->balance == EH) node->balance = LH;
+            else {
+                node->balance = EH;
+                broIsTaller = false;
+            }
+        }
     }
     else if (key > node->key) {
-        node->pRight = insertHelper(node->pRight);
+        node->pLeft = insertHelper(node->pRight, key, value, broIsTaller);
+        if (broIsTaller) {
+            if (node->balance == LH) {
+                node->balance = EH;
+                broIsTaller = false;
+            }
+            else if (node->balance == EH) node->balance = RH;
+            else node->balance = balanceRightHeavyCase(node, broIsTaller);
+        }
     }
     else {
-        // NO INSERTION
+        broIsTaller = false;
     }
-    
+    return node;
 }
 
 template <class K, class T>
 void AVLTree<K, T>::insert(const K& key, const T& value) {
-
+    bool broIsTaller = false;
+    this->root = insertHelper(this->root, key, value, broIsTaller);
 }
+
+template <class K, class T>
+typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::removeHelper(AVLNode* node, const K& key, bool& broIsShorter) {
+    if (node == nullptr) {
+        broIsShorter = false;
+        return nullptr;
+    }
+
+    if (key < node->key) {
+        
+    }
+}
+
 
 // =====================================
 // RedBlackTree<K, T> implementation
