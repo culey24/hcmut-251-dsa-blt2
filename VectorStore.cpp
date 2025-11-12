@@ -187,7 +187,7 @@ typename AVLTree<K, T>::AVLNode* AVLTree<K, T>:: removeBalanceLeft(AVLNode*& nod
                 leftOfRightChild->balance = EH;
             }
             else if (leftOfRightChild->balance == LH) {
-                node->balance = LH;
+                node->balance = EH;
                 rightChild->balance = RH;
                 leftOfRightChild->balance = EH;
             }
@@ -273,19 +273,17 @@ typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::insertHelper(AVLNode*& node, con
         }
     }
     else if (key > node->key) {
-        node->pLeft = insertHelper(node->pRight, key, value, broIsTaller);
+        node->pRight = insertHelper(node->pRight, key, value, broIsTaller);
         if (broIsTaller) {
             if (node->balance == LH) {
                 node->balance = EH;
                 broIsTaller = false;
             }
             else if (node->balance == EH) node->balance = RH;
-            else node->balance = balanceRightHeavyCase(node, broIsTaller);
+            else node = balanceRightHeavyCase(node, broIsTaller);
         }
     }
-    else {
-        broIsTaller = false;
-    }
+    else broIsTaller = false;
     return node;
 }
 
@@ -296,17 +294,133 @@ void AVLTree<K, T>::insert(const K& key, const T& value) {
 }
 
 template <class K, class T>
-typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::removeHelper(AVLNode* node, const K& key, bool& broIsShorter) {
+typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::removeMinNode(AVLNode*& node, AVLNode*& minNode, bool& broIsShorter) {
+    if (node->pLeft != nullptr) {
+        node->pLeft = removeMinNode(node->pLeft, minNode, broIsShorter);
+        if (broIsShorter) node = removeBalanceLeft(node, broIsShorter);
+    }
+    else {
+        minNode = node;
+        node = node->pRight;
+        broIsShorter = true;
+    }
+    return node;
+}
+
+template <class K, class T>
+typename AVLTree<K, T>::AVLNode* AVLTree<K, T>::removeHelper(AVLNode*& node, const K& key, bool& broIsShorter) {
     if (node == nullptr) {
         broIsShorter = false;
         return nullptr;
     }
 
     if (key < node->key) {
-        
+        node->pLeft = removeHelper(node->pLeft, key, broIsShorter);
+        if (broIsShorter) node = removeBalanceLeft(node, broIsShorter);
+    }
+    else if (key > node->key) {
+        node->pRight = removeHelper(node->pRight, key, broIsShorter);
+        if (broIsShorter) node = removeBalanceRight(node, broIsShorter);
+    }
+    else {
+        if (node->pLeft == nullptr) {
+            AVLNode* rightChild = node->pRight;
+            delete node;
+            node = rightChild;
+            broIsShorter = true;
+        }
+        else if (node->pRight == nullptr) {
+            AVLNode* leftChild = node->pLeft;
+            delete node;
+            node = leftChild;
+            broIsShorter = true;
+        }
+        else {
+            AVLNode* minNode = nullptr;
+            node->pRight = removeMinNode(node->pRight, minNode, broIsShorter);
+            node->key = minNode->key;
+            node->data = minNode->data;
+            delete minNode;
+            if (broIsShorter) node = removeBalanceRight(node, broIsShorter);
+        }
+    }
+    return node;
+}
+
+template <class K, class T>
+void AVLTree<K, T>::remove(const K& key) {
+    bool broIsShorter = false;
+    this->root = removeHelper(this->root, key, broIsShorter);
+}
+
+template <class K, class T>
+bool AVLTree<K, T>::containsHelper(AVLNode* node, const K& key) const {
+    if (node == nullptr) return false;
+    if (key < node->key) return containsHelper(node->pLeft, key);
+    else if (key > node->key) return containsHelper(node->pRight, key);
+    else return true; 
+}
+
+template <class K, class T>
+bool AVLTree<K, T>::contains(const K& key) const {
+    return containsHelper(this->root, key);
+}
+
+template <class K, class T>
+int AVLTree<K, T>::getHeightHelper(AVLNode* node) const {
+    if (node == nullptr) return 0;
+    return 1 + max(getHeightHelper(node->pLeft), getHeightHelper(node->pRight));
+}
+
+template <class K, class T>
+int AVLTree<K, T>::getHeight() const {
+    return getHeightHelper(this->root);
+}
+
+template <class K, class T>
+int AVLTree<K, T>::getSizeHelper(AVLNode* node) const {
+    if (node == nullptr) return 0;
+    return 1 + getSizeHelper(node->pLeft) + getSizeHelper(node->pRight);
+}
+
+template <class K, class T>
+int AVLTree<K, T>::getSize() const {
+    return getSizeHelper(this->root);
+}
+
+template <class K, class T>
+bool AVLTree<K, T>::empty() const {
+    return (this->root == nullptr);
+}
+
+template <class K, class T>
+void AVLTree<K, T>::clearHelper(AVLNode*& node) {
+    if (node != nullptr) {
+        clearHelper(node->pLeft);
+        clearHelper(node->pRight);
+        delete node;
+        node = nullptr;
     }
 }
 
+template <class K, class T>
+void AVLTree<K, T>::clear() {
+    clearHelper(this->root);
+}
+
+template <class K, class T>
+void AVLTree<K, T>::inOrderTraversalHelper(AVLNode* node, void (*action)(const T&)) const {
+    if (node != nullptr) {
+        inOrderTraversalHelper(node->pLeft, action);
+        action(node->data);
+        inOrderTraversalHelper(node->pRight, action);
+    }
+}
+
+template <class K, class T>
+void AVLTree<K, T>::inorderTraversal(void (*action)(const T&)) const {
+    inOrderTraversalHelper(this->root, action);
+}
 
 // =====================================
 // RedBlackTree<K, T> implementation

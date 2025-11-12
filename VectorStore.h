@@ -43,7 +43,6 @@ class AVLTree {
 
         AVLNode* rotateRight(AVLNode*& node);
         AVLNode* rotateLeft(AVLNode*& node);
-        void clearHelper(AVLNode* node);
 
         // MANUALLY DEFINED FUNCTIONS 
         AVLNode* balanceLeftHeavyCase(AVLNode*& node, bool& broIsTaller);
@@ -51,7 +50,14 @@ class AVLTree {
         AVLNode* removeBalanceLeft(AVLNode*& node, bool& broIsShorter);
         AVLNode* removeBalanceRight(AVLNode*& node, bool& broIsShorter);
         AVLNode* insertHelper(AVLNode*& node, const K& key, const T& value, bool& broIsTaller); 
-        AVLNode* removeHelper(AVLNode* node, const K& key, bool& broIsShorter);
+        AVLNode* removeMinNode(AVLNode*& node, AVLNode*& minNode, bool& broIsShorter);
+        AVLNode* removeHelper(AVLNode*& node, const K& key, bool& broIsShorter);
+        bool containsHelper(AVLNode* node, const K& key) const;
+        int getHeightHelper(AVLNode* node) const;
+        int getSizeHelper(AVLNode* node) const;
+        void clearHelper(AVLNode*& node);
+        void inOrderTraversalHelper(AVLNode* node, void (*action)(const T&)) const;
+
     public:
         AVLTree();
         ~AVLTree();
