@@ -889,20 +889,20 @@ typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBound(const K& ke
     }
     else {
         found = true;
-        return nullptr;
+        return temp;
     }
 }
 
 template <class K, class T>
 typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::upperBound(const K& key, bool& found) const {
-    RBTNode* temp = upperBoundNode(key);
-    if (temp == nullptr) {
+    RBTNode* vendih = upperBoundNode(key);
+    if (vendih == nullptr) {
         found = false;
         return nullptr;
     }
     else {
         found = true;
-        return nullptr;
+        return vendih;
     }
 }
 
