@@ -77,8 +77,6 @@ class AVLTree {
 
         AVLNode* getRoot() const { return root; }
 
-        // MANUALLY DEFINED FUNCTIONS 
-
 };
 
 enum Color { RED, BLACK };
@@ -118,6 +116,11 @@ protected:
 
     RBTNode* lowerBoundNode(const K& key) const;
     RBTNode* upperBoundNode(const K& key) const;
+
+    // MANUALLY DEFINED FUNCTIONS 
+    int getSizeHelper(RBTNode* node) const;
+    void clearHelper(RBTNode* node);
+    void insertRebalance(RBTNode*& node);
 
 public:
     RedBlackTree();
@@ -191,6 +194,8 @@ class VectorStore {
         void rebuildTreeWithNewRoot(VectorRecord* newRoot);
 
         VectorRecord* findVectorNearestToDistance(double targetDistance) const; 
+
+        // MANUALLY DEFINED FUNCTIONS 
 
     public:
         VectorStore(int dimension,

@@ -423,6 +423,30 @@ void AVLTree<K, T>::inorderTraversal(void (*action)(const T&)) const {
 }
 
 // =====================================
+// RBTNode implementation
+// =====================================
+
+template <class K, class T>
+RedBlackTree<K, T>::RBTNode::RBTNode(const K& key, const T& value) {
+    this->key = key;
+    this->data = value;
+    this->color = RED;
+    this->left = nullptr;
+    this->right = nullptr;
+    this->parent = nullptr;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::RBTNode::recolorToRed() {
+    this->color = RED;  
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::RBTNode::recolorToBlack() {
+    this->color = BLACK;  
+}
+
+// =====================================
 // RedBlackTree<K, T> implementation
 // =====================================
 
@@ -513,6 +537,117 @@ void RedBlackTree<K, T>::printTreeStructure() const
 }
 
 // TODO: Implement all other RedBlackTree<K, T> methods here
+template <class K, class T>
+void RedBlackTree<K, T>::rotateLeft(RBTNode* node) {
+    RBTNode* newRoot = node->right;
+    node->right = newRoot->left;
+    if (node->right != nullptr) node->right->parent = node; // FIXED
+    newRoot->parent = node->parent;
+    if (node->parent == nullptr) this->root = newRoot;
+    else if (node->parent->left == node) node->parent->left = newRoot;
+    else node->parent->right = newRoot;
+    newRoot->left = node;
+    node->parent = newRoot;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::rotateRight(RBTNode* node) {
+    RBTNode* newRoot = node->left;
+    node->left = newRoot->right;
+    if (node->left != nullptr) node->left->parent = node; // FIXED
+    newRoot->parent = node->parent;
+    if (node->parent == nullptr) this->root = newRoot;
+    else if (node->parent->left == node) node->parent->left = newRoot;
+    else node->parent->right = newRoot;
+    newRoot->right = node;
+    node->parent = newRoot;
+}
+
+template <class K, class T> 
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBoundNode(const K &key) const {
+    RBTNode* cursor = this->root;
+    RBTNode* result = nullptr;
+    while (cursor != nullptr) {
+        if (cursor->key >= key) {
+            result = cursor;
+            cursor = cursor->left;
+        }
+        else cursor = cursor->right;
+    }
+    return result;
+}
+
+template <class K, class T> 
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::upperBoundNode(const K &key) const {
+    RBTNode* cursor = this->root;
+    RBTNode* result = nullptr;
+    while (cursor != nullptr) {
+        if (cursor->key > key) {
+            result = cursor;
+            cursor = cursor->left;
+        }
+        else cursor = cursor->right;
+    }
+    return result;
+}
+
+template <class K, class T>
+RedBlackTree<K, T>::RedBlackTree() {
+    this->root = nullptr;
+}
+
+template <class K, class T>
+RedBlackTree<K, T>::~RedBlackTree() {
+    this->clear();
+}
+
+template <class K, class T>
+bool RedBlackTree<K, T>::empty() const {
+    return (this->root == nullptr);
+}
+
+template<class K, class T>
+int RedBlackTree<K, T>::getSizeHelper(RBTNode* node) const {
+    if (node == nullptr) return 0;
+    else return 1 + getSizeHelper(node->left) + getSizeHelper(node->right);
+}
+
+template <class K, class T>
+int RedBlackTree<K, T>::size() const {
+    return getSizeHelper(this->root);
+}
+template <class K, class T> 
+void RedBlackTree<K, T>::clearHelper(RBTNode *node) {
+    if (node == nullptr) return;
+    clearHelper(node->left);
+    clearHelper(node->right);
+    delete node;
+    return;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::clear() {
+    clearHelper(this->root);
+    this->root = nullptr;
+}
+
+template <class K, class T> 
+void RedBlackTree<K, T>::insertRebalance(RBTNode *&node) {
+    RBTNode* parent = nullptr;
+    RBTNode* grandParent = nullptr;
+    while (node != this->root && node->color != BLACK && node->parent->color == RED) {
+        parent = node->parent;
+        grandParent = parent->parent;
+        
+    }
+}
+
+template <class K, class T> 
+void RedBlackTree<K, T>::insert(const K &key, const T &value) {
+    
+}
+
+
 
 // =====================================
 // VectorRecord implementation
