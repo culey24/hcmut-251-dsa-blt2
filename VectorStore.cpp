@@ -428,6 +428,7 @@ void AVLTree<K, T>::inorderTraversal(void (*action)(const T&)) const {
 
 template <class K, class T>
 RedBlackTree<K, T>::RBTNode::RBTNode(const K& key, const T& value) {
+    // inits bunch of value wall of text warning
     this->key = key;
     this->data = value;
     this->color = RED;
@@ -631,23 +632,279 @@ void RedBlackTree<K, T>::clear() {
     this->root = nullptr;
 }
 
-template <class K, class T> 
-void RedBlackTree<K, T>::insertRebalance(RBTNode *&node) {
-    RBTNode* parent = nullptr;
-    RBTNode* grandParent = nullptr;
-    while (node != this->root && node->color != BLACK && node->parent->color == RED) {
-        parent = node->parent;
-        grandParent = parent->parent;
-        
+template<class K, class T> 
+void RedBlackTree<K, T>::handleLCase(RBTNode*& node) {
+    // Case where parent is grandparent->left i think
+    RBTNode* parent = node->parent;
+    RBTNode* grandparent = parent->parent;
+    RBTNode* uncle = grandparent->right;
+
+    if (uncle != nullptr && uncle->color == RED) {
+        grandparent->recolorToRed();
+        parent->recolorToBlack();
+        uncle->recolorToBlack();
+        node = grandparent;
+    } 
+    else {
+        if (node == parent->right) {
+            rotateLeft(parent);
+            node = parent;
+            parent = node->parent;
+        }
+        rotateRight(grandparent);
+        Color temp = parent->color;
+        parent->color = grandparent->color;
+        grandparent->color = temp;
+        node = parent;
+    }
+}
+
+template<class K, class T> 
+void RedBlackTree<K, T>::handleRCase(RBTNode*& node) {
+    // Case where parent is grandparent->right im pretty sure
+    RBTNode* parent = node->parent;
+    RBTNode* grandparent = parent->parent;
+    RBTNode* uncle = grandparent->left;
+    if (uncle != nullptr && uncle->color == RED) {
+        grandparent->recolorToRed();
+        parent->recolorToBlack();
+        uncle->recolorToBlack();
+        node = grandparent;
+    }
+    else {
+        if (node == parent->left) {
+            rotateRight(parent);
+            node = parent;
+            parent = node->parent;
+        }
+        rotateLeft(grandparent);
+        Color temp = parent->color;
+        parent->color = grandparent->color;
+        grandparent->color = temp;
+        node = parent;
     }
 }
 
 template <class K, class T> 
-void RedBlackTree<K, T>::insert(const K &key, const T &value) {
-    
+void RedBlackTree<K, T>::insertRebalance(RBTNode*& node) {
+    while (node != this->root && node->color == RED && node->parent->color == RED) {
+        RBTNode* parent = node->parent;
+        RBTNode* grandparent = parent->parent;
+        if (parent == grandparent->left) {
+            handleLCase(node);
+        }
+        else if (parent == grandparent->right) {
+            handleRCase(node);
+        }
+    }
+    this->root->recolorToBlack();
 }
 
+template <class K, class T> 
+void RedBlackTree<K, T>::insert(const K &key, const T &value) {
+    RBTNode* newNode = new RBTNode(key, value);
+    RBTNode* parent = nullptr;
+    RBTNode* cursor = this->root;
+    while (cursor != nullptr) {
+        parent = cursor;
+        if (key < cursor->key) {
+            cursor = cursor->left;
+        }
+        else if (key > cursor->key) {
+            cursor = cursor->right;
+        }
+        else {
+            // i dont personally think waht is going on here
+            delete newNode;
+            return;
+        }
+    }
+    newNode->parent = parent;
+    if (parent == nullptr) this->root = newNode;
+    else if (key < parent->key) {
+        parent->left = newNode;
+    }
+    else if (key > parent->key) {
+        parent->right = newNode;
+    }   
+    else {
+        // case where we deleted so i just put this comment here for aura farming
+    }
+    if (newNode->parent != nullptr) insertRebalance(newNode);
+    else newNode->recolorToBlack(); // root
+}
 
+template <class K, class T>
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::find(const K& key) const {
+    RBTNode* cursor = this->root;
+    while (cursor != nullptr) {
+        if (key < cursor->key) cursor = cursor->left;
+        else if (key > cursor->key) cursor = cursor->right;
+        else return cursor;
+    }
+    return nullptr;
+}
+
+template <class K, class T>
+bool RedBlackTree<K, T>::contains(const K& key) const {
+    return (find(key) != nullptr);
+}
+
+template <class K, class T>
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::findMaxNode(RBTNode* node) {
+    RBTNode* cursor = node;
+    while (cursor->right != nullptr) cursor = cursor->right;
+    return cursor;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::changeParent(RBTNode* a, RBTNode* b) {
+    if (a == nullptr) return;
+    if (a->parent == nullptr) this->root = b;
+    else if (a == a->parent->left) a->parent->left = b;
+    else if (a == a->parent->right) a->parent->right = b;
+    if (b != nullptr) b->parent = a->parent;
+    return;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::removeRebalanceLCase(RBTNode*& node, RBTNode*& parent) {
+    RBTNode* stepBro = parent->right;
+    if (stepBro->color == RED) {
+        stepBro->recolorToBlack();
+        parent->recolorToRed();
+        rotateLeft(parent);
+        stepBro = parent->right;
+    }
+
+    if ((stepBro->left == nullptr || stepBro->left->color == BLACK) && (stepBro->right == nullptr || stepBro->right->color == BLACK)) {
+        stepBro->recolorToRed();
+        node = parent;
+        parent = node->parent;
+    }
+    else {
+        if (stepBro->right == nullptr || stepBro->right->color == BLACK) {
+            if (stepBro->left != nullptr) stepBro->left->recolorToBlack();
+            stepBro->recolorToRed();
+            rotateRight(stepBro);
+            stepBro = parent->right;
+        }
+        
+        stepBro->color = parent->color;
+        parent->recolorToBlack();
+        if (stepBro->right != nullptr) stepBro->right->recolorToBlack();
+        rotateLeft(parent);
+        node = this->root;
+    }
+    return;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::removeRebalanceRCase(RBTNode*& node, RBTNode*& parent) {
+    RBTNode* stepBro = parent->left;
+    if (stepBro->color == RED) {
+        stepBro->recolorToBlack();
+        parent->recolorToRed();
+        rotateRight(parent);
+        stepBro = parent->left;
+    }
+    if ((stepBro->right == nullptr || stepBro->right->color == BLACK) && (stepBro->left == nullptr || stepBro->left->color == BLACK)) {
+        stepBro->recolorToRed();
+        node = parent;
+        parent = node->parent;
+    } 
+    else {
+        if (stepBro->left == nullptr || stepBro->left->color == BLACK) {
+            if (stepBro->right != nullptr) stepBro->right->recolorToBlack();
+            stepBro->recolorToRed();
+            rotateLeft(stepBro);
+            stepBro = parent->left;
+
+        }
+        stepBro->color = parent->color;
+        parent->recolorToBlack();
+        if (stepBro->left != nullptr) stepBro->left->recolorToBlack();
+        rotateRight(parent);
+        node = this->root;
+    }
+    return;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::removeRebalance(RBTNode*& node, RBTNode*& parent) {
+    while (node != this->root && (node == nullptr || node->color == BLACK)) {
+        if (node == parent->left) this->removeRebalanceLCase(node, parent);
+        else if (node == parent->right) this->removeRebalanceRCase(node, parent);
+    }
+    if (node != nullptr) node->recolorToBlack();
+    return;
+}
+
+template <class K, class T>
+void RedBlackTree<K, T>::remove(const K& key) {
+    RBTNode* node = find(key);
+    if (node == nullptr) return; // Nothing founded
+    RBTNode* cursor = node;
+    RBTNode* child = nullptr;
+    RBTNode* parent = nullptr;
+    
+    Color cursorColor = node->color;
+
+    if (node->left == nullptr) {
+        child = node->right;
+        parent = node->parent;
+        changeParent(node, node->right);
+    }
+    else if (node->right == nullptr) {
+        child = node->left;
+        parent = node->parent;
+        changeParent(node, node->left);
+    }
+    else {
+        cursor = findMaxNode(node->left);
+        cursorColor = cursor->color;
+        child = cursor->left; // since max node doesnt have right child
+        if (cursor->parent == node) parent = cursor;
+        else {
+            parent = cursor->parent;
+            changeParent(cursor, cursor->left);
+            cursor->left = node->left;
+            cursor->left->parent = cursor;
+        }
+        changeParent(node, cursor);
+        cursor->right = node->right;
+        cursor->right->parent = cursor;
+        cursor->color = node->color;
+    }
+    delete node;
+    if (cursorColor == BLACK) removeRebalance(child, parent);
+}
+
+template <class K, class T>
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBound(const K& key, bool& found) const {
+    RBTNode* temp = lowerBoundNode(key);
+    if (temp == nullptr) {
+        found = false;
+        return nullptr;
+    }
+    else {
+        found = true;
+        return nullptr;
+    }
+}
+
+template <class K, class T>
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::upperBound(const K& key, bool& found) const {
+    RBTNode* temp = upperBoundNode(key);
+    if (temp == nullptr) {
+        found = false;
+        return nullptr;
+    }
+    else {
+        found = true;
+        return nullptr;
+    }
+}
 
 // =====================================
 // VectorRecord implementation

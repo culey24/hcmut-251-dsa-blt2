@@ -117,10 +117,23 @@ protected:
     RBTNode* lowerBoundNode(const K& key) const;
     RBTNode* upperBoundNode(const K& key) const;
 
-    // MANUALLY DEFINED FUNCTIONS 
+    /*
+    MANUALLY DEFINED FUNCTIONS 
+    */
     int getSizeHelper(RBTNode* node) const;
     void clearHelper(RBTNode* node);
+    
+    //insert hlpers
+    void handleLCase(RBTNode*& node);
+    void handleRCase(RBTNode*& node);
     void insertRebalance(RBTNode*& node);
+
+    //remove helpers
+    RBTNode* findMaxNode(RBTNode* node);
+    void changeParent(RBTNode* u, RBTNode* v);
+    void removeRebalanceLCase(RBTNode*& node, RBTNode*& parent);
+    void removeRebalanceRCase(RBTNode*& node, RBTNode*& parent);
+    void removeRebalance(RBTNode*& node, RBTNode*& parent);
 
 public:
     RedBlackTree();
