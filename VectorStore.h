@@ -1,6 +1,7 @@
 #ifndef VECTORSTORE_H
 #define VECTORSTORE_H
 
+#include <vector>
 #pragma once
 // NOTE: Per assignment rules, only this single include is allowed here.
 #include "main.h"
@@ -209,7 +210,11 @@ class VectorStore {
         VectorRecord* findVectorNearestToDistance(double targetDistance) const; 
 
         // MANUALLY DEFINED FUNCTIONS 
-
+        double calculateNorm(const std::vector<float>& vector);
+        void getAllRecords(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord>& list);
+        AVLTree<double, VectorRecord>::AVLNode* rebuildAVL(const std::vector<VectorRecord>& sortedList, int start, int end);
+        VectorRecord* getRecord(AVLTree<double, VectorRecord>::AVLNode* node, int& currentIndex, int targetIndex);
+        VectorRecord* findNewRoot(AVLTree<double, VectorRecord>::AVLNode* node);
     public:
         VectorStore(int dimension,
                     std::vector<float>* (*embeddingFunction)(const std::string&),
@@ -255,6 +260,18 @@ class VectorStore {
         double getMaxDistance() const;
         double getMinDistance() const;
         VectorRecord computeCentroid(const std::vector<VectorRecord*>& records) const;
+};
+
+template <class T>
+class Sorter {
+private:
+    T* array;
+    int size;
+    void merge_sort(int left_index, int right_index, T* culey_handsome);
+public:
+    Sorter(T* array, int size);
+    ~Sorter() = default;
+    void sort();
 };
 
 

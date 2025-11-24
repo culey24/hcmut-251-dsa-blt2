@@ -1,5 +1,9 @@
 // NOTE: Per assignment rules, only this single include is allowed here.
 #include "VectorStore.h"
+#include <cmath>
+#include <cstdlib>
+#include <stdexcept>
+#include <vector>
 
 // =====================================
 // Helper functions
@@ -917,11 +921,243 @@ std::ostream &operator<<(std::ostream &os, const VectorRecord &record)
     return os;
 }
 
+bool operator<(const VectorRecord& a, const VectorRecord& b) {
+    return a.distanceFromReference < b.distanceFromReference;
+}
+
 // =====================================
 // VectorStore implementation
 // =====================================
 
 // TODO: Implement all VectorStore methods here
+
+VectorStore::VectorStore(int dimension,
+                    std::vector<float>* (*embeddingFunction)(const std::string&),
+                    const std::vector<float>& referenceVector) {
+    this->dimension = dimension;
+    this->embeddingFunction = embeddingFunction;
+    this->referenceVector = new std::vector<float>(referenceVector);
+    
+    this->vectorStore = new AVLTree<double, VectorRecord>;
+    this->normIndex = new RedBlackTree<double, VectorRecord>;
+    this->count = 0;
+    this->averageDistance = 0.0;
+    this->rootVector = nullptr;
+}   
+
+VectorStore::~VectorStore() {
+    this->clear();
+}
+
+int VectorStore::size() {
+    return count;
+}
+
+bool VectorStore::empty() {
+    return (count == 0);
+}
+
+void VectorStore::clear() {
+    this->vectorStore->clear();
+    this->normIndex->clear();
+}
+
+std::vector<float>* VectorStore::preprocessing(std::string rawText) {
+    std::vector<float>* preprocessedVector = embeddingFunction(rawText);
+    if (preprocessedVector->size() == this->dimension) {
+        // aura farming
+    }
+    else if (preprocessedVector->size() > dimension) preprocessedVector->resize(this->dimension);
+    else preprocessedVector->resize(this->dimension, 0);
+    return preprocessedVector;
+}
+
+double VectorStore::calculateNorm(const std::vector<float>& vector) {
+    double sum = 0.0;
+    for (float i : vector) sum += i * i;
+    return sqrt(sum);
+}
+
+void VectorStore::getAllRecords(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord>& list) {
+    if (node == nullptr) return;
+    getAllRecords(node->pLeft, list);
+    list.push_back(node->data);
+    getAllRecords(node->pRight, list);
+}
+
+AVLTree<double, VectorRecord>::AVLNode* VectorStore::rebuildAVL(const std::vector<VectorRecord>& sortedList, int start, int end) {
+    if (start > end) return nullptr;
+    int middleIndex = (start + end) / 2;
+    const VectorRecord& record = sortedList[middleIndex];
+    AVLTree<double, VectorRecord>::AVLNode* newNode = new AVLTree<double, VectorRecord>::AVLNode(record.distanceFromReference, record);
+    newNode->balance = EH;
+    newNode->pLeft = rebuildAVL(sortedList, start, middleIndex - 1);
+    newNode->pRight = rebuildAVL(sortedList, middleIndex + 1, end);
+    return newNode;
+}
+
+void VectorStore::addText(string rawText) {
+    std::vector<float>* preprocessedVector = preprocessing(rawText);
+
+    VectorRecord record;
+    record.id = this->count;
+    record.rawText = rawText;
+    record.rawLength = rawText.size();
+    record.vector = preprocessedVector;
+    record.distanceFromReference = l2Distance(*preprocessedVector, *referenceVector);
+    
+    if (this->count == 0) this->averageDistance = record.distanceFromReference;
+    else {
+        double oldTotalDistance = this->averageDistance * this->count;
+        this->averageDistance = (oldTotalDistance + record.distanceFromReference) / (this->count + 1);
+    }
+    this->count++;
+    
+    if (this->vectorStore->empty()) this->vectorStore->insert(record.distanceFromReference, record);
+    else {
+        double currentRootDistance = this->vectorStore->root->key;
+        double deltaNewDistance = abs(record.distanceFromReference - this->averageDistance);
+        double deltaRootDistance = abs(currentRootDistance - this->averageDistance);
+        if (deltaNewDistance < deltaRootDistance) {
+            std::vector<VectorRecord> allRecords;
+            getAllRecords(this->vectorStore->root, allRecords);
+            allRecords.push_back(record);
+            Sorter<VectorRecord> sorter(allRecords.data(), allRecords.size());
+            sorter.sort();
+            this->vectorStore->clear();
+            this->vectorStore->root = rebuildAVL(allRecords, 0, allRecords.size() - 1);
+        }
+        else {
+            this->vectorStore->insert(record.distanceFromReference, record);
+        }
+    }
+    this->normIndex->insert(calculateNorm(*preprocessedVector), record);
+    return;
+}
+
+VectorRecord* VectorStore::getRecord(AVLTree<double, VectorRecord>::AVLNode* node, int& currentIndex, int targetIndex) {
+    if (node == nullptr) return nullptr;
+    VectorRecord* leftCase = getRecord(node->pLeft, currentIndex, targetIndex);
+    if (leftCase != nullptr) {
+        return leftCase;
+    }
+    if (currentIndex == targetIndex) {
+        return &(node->data);
+    }
+    currentIndex++; // if fails
+    return getRecord(node->pRight, currentIndex, targetIndex);
+}
+
+VectorRecord* VectorStore::getVector(int index) {
+    if (index < 0 || index >= this->count) throw std::out_of_range("Index is invalid!");
+    int currentIndex = 0;
+    return getRecord(this->vectorStore->root, currentIndex, index);
+}
+
+string VectorStore::getRawText(int index) {
+    VectorRecord* record = getVector(index);
+    return record->rawText;
+}
+
+int VectorStore::getId(int index) {
+    VectorRecord* record = getVector(index);
+    return record->id;
+}
+
+VectorRecord* VectorStore::findNewRoot(AVLTree<double, VectorRecord>::AVLNode* node) {
+    if (node == nullptr) return nullptr;
+    VectorRecord* newRoot = &(node->data);
+    double minDelta = abs(node->data.distanceFromReference - this->averageDistance);
+    VectorRecord* leftCase = findNewRoot(node->pLeft);
+    if (leftCase != nullptr) {
+        double leftDelta = abs(leftCase->distanceFromReference - this->averageDistance);
+        if (leftDelta < minDelta) {
+            minDelta = leftDelta;
+            newRoot = leftCase;
+        }
+    }
+    VectorRecord* rightCase = findNewRoot(node->pRight);
+    if (rightCase != nullptr) {
+        double rightDelta = abs(rightCase->distanceFromReference - this->averageDistance);
+        if (rightDelta < minDelta) {
+            minDelta = rightDelta;
+            newRoot = rightCase;
+        }
+    }
+    return newRoot;
+}
+
+bool VectorStore::removeAt(int index) {
+    if (index < 0 || index >= this->count) throw std::out_of_range("Index is invalid!");
+    VectorRecord* unlucky = getVector(index);
+    double distanceFromReference = unlucky->distanceFromReference;
+    double norm = calculateNorm(*unlucky->vector);
+    std::vector<float>* unluckyVector = unlucky->vector;
+    bool oldRootRemoved = false;
+    if (this->vectorStore->root != nullptr) {
+        if (unlucky->vector == this->vectorStore->root->data.vector) return true;
+    }
+    this->vectorStore->remove(distanceFromReference);
+    this->normIndex->remove(norm);
+    if (this->count > 1) {
+        double oldTotalDistance = this->averageDistance * this->count;
+        this->averageDistance = (oldTotalDistance - distanceFromReference) / (this->count - 1);
+    }
+    else {
+        this->averageDistance = 0;
+    }
+    this->count--;
+    if (unluckyVector != nullptr) delete unluckyVector;
+    if (this->count > 0 && oldRootRemoved) {
+        VectorRecord* newRoot = findNewRoot(this->vectorStore->root);
+    }
+    else if (this->count == 0) this->averageDistance = 0;
+    return true;
+}
+
+// =====================================
+// Sorter implementation
+// =====================================
+template <class T>
+Sorter<T>::Sorter(T* array, int size) {
+    this->array = array;
+    this->size = size;
+}
+
+template <class T>
+void Sorter<T>::merge_sort(int left_index, int right_index, T* culey_handsome) {
+    // 
+    if (left_index >= right_index) return;
+    int mid_index = left_index + (right_index - left_index) / 2;
+    
+    merge_sort(left_index, mid_index, culey_handsome);
+    merge_sort(mid_index + 1, right_index, culey_handsome);
+
+    int i = left_index;
+    int j = mid_index + 1;
+    int k = left_index;
+
+    while (i <= mid_index && j <= right_index) {
+        if (!(array[j] < array[i])) {
+            culey_handsome[k++] = array[i++];
+        } else {
+            culey_handsome[k++] = array[j++];
+        }
+    }
+    while (i <= mid_index)   culey_handsome[k++] = array[i++];
+    while (j <= right_index) culey_handsome[k++] = array[j++];
+    for (int t = left_index; t <= right_index; ++t) {
+        array[t] = culey_handsome[t];
+    }
+}
+
+template <class T>
+void Sorter<T>::sort() {
+    if (!array || size <= 1) return;
+    T* culey_handsome = new T[size];
+    merge_sort(0, size - 1, culey_handsome);
+    delete[] culey_handsome;
+}
 
 // Explicit template instantiation for the type used by VectorStore
 template class AVLTree<double, VectorRecord>;
