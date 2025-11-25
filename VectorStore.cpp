@@ -1292,6 +1292,7 @@ void VectorStore::RBTSearchWithRange(RedBlackTree<double, VectorRecord>::RBTNode
     return;
 }
 
+// USING STRUCT CANDIDATE for Id and uhh distance storing
 int* VectorStore::topKNearest(const std::vector<float>& query, int k, std::string metric) {
     if (metric != "cosine" && metric != "l1" && metric != "euclidean") throw std::runtime_error("invalid_metric");
     if (k <= 0 || k > this->count) throw invalid_k_value();
