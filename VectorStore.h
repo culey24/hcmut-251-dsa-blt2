@@ -212,9 +212,22 @@ class VectorStore {
         // MANUALLY DEFINED FUNCTIONS 
         double calculateNorm(const std::vector<float>& vector);
         void getAllRecords(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord>& list);
+        void getAllRecordPointers(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord*>& list);
         AVLTree<double, VectorRecord>::AVLNode* rebuildAVL(const std::vector<VectorRecord>& sortedList, int start, int end);
         VectorRecord* getRecord(AVLTree<double, VectorRecord>::AVLNode* node, int& currentIndex, int targetIndex);
         VectorRecord* findNewRoot(AVLTree<double, VectorRecord>::AVLNode* node);
+        void forEachHelper(AVLTree<double, VectorRecord>::AVLNode* node, void (*action)(std::vector<float>&, int, std::string&));
+        void recalculateAverageDistance();
+        double calculateMetric(const std::vector<float>& v1, const std::vector<float>& v2, std::string metric);
+        double calculateMetricConst(const std::vector<float>& v1, const std::vector<float>& v2, std::string metric) const;
+        void findNearestHelper(AVLTree<double, VectorRecord>::AVLNode* node, const std::vector<float>& query, std::string metric, double& minDistance, int& bestId);
+        void rangeQueryFromRootHelper(AVLTree<double, VectorRecord>::AVLNode* node, double minDistance, double maxDistance, std::vector<int>& list) const;
+        double cosineSimilarityConst(const std::vector<float>& v1, const std::vector<float>& v2) const;
+        double l1DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const;
+        double l2DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const;
+        void rangeQueryHelper(AVLTree<double, VectorRecord>::AVLNode* node, const std::vector<float>& query, double radius, std::string metric, std::vector<int>& list) const;
+        void boundingBoxHelper(AVLTree<double, VectorRecord>::AVLNode* node, const std::vector<float>& minBound, const std::vector<float>& maxBound, std::vector<int>& result) const;
+        
     public:
         VectorStore(int dimension,
                     std::vector<float>* (*embeddingFunction)(const std::string&),

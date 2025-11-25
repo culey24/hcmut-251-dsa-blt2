@@ -1,5 +1,6 @@
 // NOTE: Per assignment rules, only this single include is allowed here.
 #include "VectorStore.h"
+#include "main.h"
 #include <cmath>
 #include <cstdlib>
 #include <stdexcept>
@@ -985,6 +986,13 @@ void VectorStore::getAllRecords(AVLTree<double, VectorRecord>::AVLNode* node, st
     getAllRecords(node->pRight, list);
 }
 
+void VectorStore::getAllRecordPointers(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord*>& list) {
+    if (node == nullptr) return;
+    getAllRecordPointers(node->pLeft, list);
+    list.push_back(&(node->data));
+    getAllRecordPointers(node->pRight, list);
+}
+
 AVLTree<double, VectorRecord>::AVLNode* VectorStore::rebuildAVL(const std::vector<VectorRecord>& sortedList, int start, int end) {
     if (start > end) return nullptr;
     int middleIndex = (start + end) / 2;
@@ -1113,6 +1121,341 @@ bool VectorStore::removeAt(int index) {
     }
     else if (this->count == 0) this->averageDistance = 0;
     return true;
+} 
+
+void VectorStore::recalculateAverageDistance() {
+    std::vector<VectorRecord> records;
+    getAllRecords(this->vectorStore->root, records);
+    double totalDistance = 0;
+    for (VectorRecord& record : records) {
+        record.distanceFromReference = l2Distance(*record.vector, *this->referenceVector);
+        totalDistance += record.distanceFromReference;
+    }
+    this->averageDistance = totalDistance / records.size();
+}
+
+void VectorStore::setReferenceVector(const std::vector<float>& newReference) {
+    if (this->referenceVector) delete this->referenceVector;
+    this->referenceVector = new std::vector<float>(newReference);
+    if (this->referenceVector->empty()) return;
+    
+    recalculateAverageDistance();
+
+    std::vector<VectorRecord> records;
+    getAllRecords(this->vectorStore->root, records);
+    Sorter<VectorRecord> sorter(records.data(), records.size());
+    sorter.sort();
+
+    int rootIndex = 0;
+    double minDelta = abs(records[0].distanceFromReference - this->averageDistance);
+    for (int i = 1; i < records.size(); i++) {
+        double delta = abs(records[i].distanceFromReference - this->averageDistance);
+        if (delta < minDelta) {
+            rootIndex = i;
+            minDelta = delta;
+        }
+    }
+    this->vectorStore->clear();
+    VectorRecord newRootRecord = records[rootIndex];
+    AVLTree<double, VectorRecord>::AVLNode* newRoot = new AVLTree<double, VectorRecord>::AVLNode(newRootRecord.distanceFromReference, newRootRecord);
+    newRoot->balance = EH;
+    newRoot->pLeft = rebuildAVL(records, 0, rootIndex - 1);
+    newRoot->pRight = rebuildAVL(records, rootIndex + 1, records.size() - 1);
+    this->vectorStore->root = newRoot;
+}
+
+std::vector<float>* VectorStore::getReferenceVector() const {
+    return this->referenceVector;
+}
+
+VectorRecord* VectorStore::getRootVector() const {
+    return this->rootVector;
+}
+
+double VectorStore::getAverageDistance() const {
+    return this->averageDistance;
+}
+
+void VectorStore::setEmbeddingFunction(std::vector<float>* (*newEmbeddingFunction)(const std::string&)) {
+    this->embeddingFunction = newEmbeddingFunction;
+}
+
+void VectorStore::forEachHelper(AVLTree<double, VectorRecord>::AVLNode* node, void (*action)(vector<float>&, int, string&)) {
+    if (node == nullptr) return;
+    forEachHelper(node->pLeft, action);
+    action(*(node->data.vector), node->data.id, node->data.rawText);
+    forEachHelper(node->pRight, action);
+}
+
+void VectorStore::forEach(void (*action)(vector<float>&, int, string&)) {
+    forEachHelper(this->vectorStore->root, action);
+}
+
+std::vector<int> VectorStore::getAllIdsSortedByDistance() const {
+    std::vector<int> idList;
+    std::vector<VectorRecord> records;
+    VectorStore* constantVectorStore = const_cast<VectorStore*>(this);
+    constantVectorStore->getAllRecords(constantVectorStore->vectorStore->root, records);
+    for (const VectorRecord& it : records) {
+        idList.push_back(it.id);
+    }
+    return idList;
+}
+
+std::vector<VectorRecord*> VectorStore::getAllVectorsSortedByDistance() const {
+    std::vector<VectorRecord*> records;
+    VectorStore* constantVectorStore = const_cast<VectorStore*>(this);
+    constantVectorStore->getAllRecordPointers(constantVectorStore->vectorStore->root, records);
+    return records;
+}
+
+double VectorStore::cosineSimilarity(const std::vector<float>& v1, const std::vector<float>& v2) {
+    double product = 0;
+    double v1Length = 0;
+    double v2Length = 0;
+    for (int i = 0; i < v1.size(); i++) {
+        product += v1[i] * v2[i];
+        v1Length += v1[i] * v1[i];
+        v2Length += v2[i] * v2[i];
+    }
+    if (v1Length == 0 || v2Length == 0) return 0;
+    return product/(sqrt(v1Length) + sqrt(v2Length));
+}
+
+double VectorStore::l1Distance(const std::vector<float>& v1, const std::vector<float>& v2) {
+    double sum = 0;
+    for (int i = 0; i < v1.size(); i++) {
+        sum += abs(v1[i] - v2[i]);
+    }
+    return sum;
+}
+
+double VectorStore::l2Distance(const std::vector<float>& v1, const std::vector<float>& v2) {
+    double sum = 0;
+    for (int i = 0; i < v1.size(); i++) {
+        sum += (v1[i] - v2[i]) * (v1[i] - v2[i]);
+    }
+    return sqrt(sum);
+}
+
+double VectorStore::estimateD_Linear(const std::vector<float>& query, 
+                        int k, double averageDistance, 
+                        const std::vector<float>& reference, 
+                        double c0_bias, 
+                        double c1_slope) {
+    double d_r = l2Distance(query, reference);
+    double D = abs(d_r - averageDistance) + c1_slope * averageDistance * k + c0_bias;
+    if (D > 0) return D;
+    else return 0;
+}
+
+double VectorStore::calculateMetric(const std::vector<float>& v1, const std::vector<float>& v2, std::string metric) {
+    if (metric == "cosine") return 1 - cosineSimilarity(v1, v2);
+    else if (metric == "euclidean") return l2Distance(v1, v2);
+    else if (metric == "manhattan") return l1Distance(v1, v2);
+    else throw invalid_metric();
+}
+
+void VectorStore::findNearestHelper(AVLTree<double, VectorRecord>::AVLNode* node, 
+                       const std::vector<float>& query, 
+                       std::string metric, 
+                       double& minDistance, 
+                       int& bestId) {
+    if (node == nullptr) return;
+    double distance = this->calculateMetric(query, *(node->data).vector, metric);
+    if (distance < minDistance) {
+        minDistance = distance;
+        bestId = node->data.id;
+    }
+    findNearestHelper(node->pLeft, query, metric, minDistance, bestId);
+    findNearestHelper(node->pRight, query, metric, minDistance, bestId);
+}
+
+int VectorStore::findNearest(const vector<float>& query, string metric) {
+    if (metric != "cosine" && metric != "euclidean" && metric != "manhattan") throw invalid_metric();
+    if (this->vectorStore->empty()) return -1;
+    double minDistance = 1.79769e+308;
+    int bestID = -1;
+    findNearestHelper(this->vectorStore->root, query, metric, minDistance, bestID);
+    return bestID;
+}
+
+void VectorStore::rangeQueryFromRootHelper(AVLTree<double, VectorRecord>::AVLNode* node, 
+                          double minDistance, 
+                          double maxDistance, 
+                          std::vector<int>& list) const {
+    if (node == nullptr) return;
+    int nodeKey = node->key;
+    if (nodeKey >= minDistance) rangeQueryFromRootHelper(node->pLeft, minDistance, maxDistance, list);
+    if (nodeKey >= minDistance && nodeKey <= maxDistance) list.push_back(node->data.id);
+    if (nodeKey <= maxDistance) rangeQueryFromRootHelper(node->pRight, minDistance, maxDistance, list); 
+    return;
+}
+
+int* VectorStore::rangeQueryFromRoot(double minDist, double maxDist) const {
+    vector<int> idList;
+    VectorStore* constantVectorStore = const_cast<VectorStore*>(this);
+    rangeQueryFromRootHelper(constantVectorStore->vectorStore->root, minDist, maxDist, idList);
+    if (idList.empty()) return nullptr;
+    int* list = new int[idList.size()];
+    for (int i = 0; i < idList.size(); i++) {
+        list[i] = idList[i];
+    }
+    return list;
+}
+
+double VectorStore::cosineSimilarityConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
+    double product = 0;
+    double v1Length = 0;
+    double v2Length = 0;
+    for (int i = 0; i < v1.size(); i++) {
+        product += v1[i] * v2[i];
+        v1Length += v1[i] * v1[i];
+        v2Length += v2[i] * v2[i];
+    }
+    if (v1Length == 0 || v2Length == 0) return 0;
+    return product/(sqrt(v1Length) + sqrt(v2Length));
+}
+
+double VectorStore::l1DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
+    double sum = 0;
+    for (int i = 0; i < v1.size(); i++) {
+        sum += abs(v1[i] - v2[i]);
+    }
+    return sum;
+}
+
+double VectorStore::l2DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
+    double sum = 0;
+    for (int i = 0; i < v1.size(); i++) {
+        sum += (v1[i] - v2[i]) * (v1[i] - v2[i]);
+    }
+    return sqrt(sum);
+}
+
+double VectorStore::calculateMetricConst(const std::vector<float>& v1, const std::vector<float>& v2, std::string metric) const {
+    if (metric == "cosine") return 1 - cosineSimilarityConst(v1, v2);
+    else if (metric == "euclidean") return l2DistanceConst(v1, v2);
+    else if (metric == "manhattan") return l1DistanceConst(v1, v2);
+    else throw invalid_metric();
+}
+
+void VectorStore::rangeQueryHelper(AVLTree<double, VectorRecord>::AVLNode* node, 
+                                    const std::vector<float>& query, 
+                                    double radius, 
+                                    std::string metric,  
+                                    std::vector<int>& list) const {
+    if (node == nullptr) return;
+    rangeQueryHelper(node->pLeft, query, radius, metric, list);
+    double distance = calculateMetricConst(query, *node->data.vector, metric);
+    if (distance <= radius) list.push_back(node->data.id);
+    rangeQueryHelper(node->pRight, query, radius, metric, list);
+}
+
+int* VectorStore::rangeQuery(const std::vector<float>& query, double radius, std::string metric) const {
+    if (metric != "cosine" && metric != "euclidean" && metric != "manhattan") throw invalid_metric();
+    vector<int> idList;
+    rangeQueryHelper(this->vectorStore->root, query, radius, metric,idList);
+    if (idList.empty()) return nullptr;
+    int* list = new int[idList.size()];
+    for (int i = 0; i < idList.size(); i++) {
+        list[i] = idList[i];
+    } 
+    return list;
+}
+
+void VectorStore::boundingBoxHelper(AVLTree<double, VectorRecord>::AVLNode* node, 
+                                    const std::vector<float>& minBound, 
+                                    const std::vector<float>& maxBound, 
+                                    std::vector<int>& result) const {
+    if (node == nullptr) return;
+    boundingBoxHelper(node->pLeft, minBound, maxBound, result);
+    bool temp = true;
+    const vector<float>& nodeVector = *node->data.vector;
+    for (int i = 0; i < nodeVector.size(); i++) {
+        if (nodeVector[i] < minBound[i] || nodeVector[i] > maxBound[i]) {
+            temp = false;
+            break;
+        }
+    }
+    if (temp) result.push_back(node->data.id);
+    boundingBoxHelper(node->pRight, minBound, maxBound, result);
+    return;
+}
+
+int* VectorStore::boundingBoxQuery(const std::vector<float>& minBound, const std::vector<float>& maxBound) const {
+    vector<int> idList;
+    boundingBoxHelper(this->vectorStore->root, minBound, maxBound, idList);
+    if (idList.empty()) return nullptr;
+    int* list = new int[idList.size()];
+    for (int i = 0; i < idList.size(); i++) {
+        list[i] = idList[i];
+    }
+    return list;
+}
+
+double VectorStore::getMaxDistance() const {
+    if (this->vectorStore->empty()) return -1;
+    AVLTree<double, VectorRecord>::AVLNode* cursor = this->vectorStore->root;
+    while (cursor->pRight != nullptr) {
+        cursor = cursor->pRight;
+    }
+    return cursor->key;
+}
+
+double VectorStore::getMinDistance() const {
+    if (this->vectorStore->empty()) return -1;
+    AVLTree<double, VectorRecord>::AVLNode* cursor = this->vectorStore->root;
+    while (cursor->pLeft != nullptr) {
+        cursor = cursor->pLeft;
+    }
+    return cursor->key;
+}
+
+VectorRecord VectorStore::computeCentroid(const std::vector<VectorRecord*>& records) const {
+    if (records.empty()) {
+       return VectorRecord(-1, "", nullptr, 0.0);    
+    }
+    VectorRecord centroid;
+    vector<float>* sumVector = new vector<float>(this->dimension, 0);
+    for (VectorRecord* record : records) {
+        const vector<float>& vector = *record->vector;
+        for (int i = 0; i < this->dimension; i++) {
+            (*sumVector)[i] += vector[i];
+        }
+    }
+    for (int i = 0; i < this->dimension; ++i) {
+        (*sumVector)[i] /= (float)records.size();
+    }
+    centroid.vector = sumVector;
+    centroid.id = -1;
+    centroid.rawText = "centroid";
+    centroid.distanceFromReference = l2DistanceConst(*sumVector, *this->referenceVector);
+    return centroid;
+}
+
+VectorRecord* VectorStore::findVectorNearestToDistance(double targetDistance) const {
+    if (this->vectorStore->empty()) return nullptr;
+    AVLTree<double, VectorRecord>::AVLNode* cursor = this->vectorStore->root;
+    AVLTree<double, VectorRecord>::AVLNode* nearest = cursor;
+    double minDelta = abs(cursor->key - targetDistance);
+    while (cursor != nullptr) {
+        double delta = abs(cursor->key - targetDistance);
+        if (delta < minDelta) {
+            minDelta = delta;
+            nearest = cursor;
+        }
+        if (targetDistance < cursor->key) {
+            cursor = cursor->pLeft;
+        }
+        else if (targetDistance > cursor->key) {
+            cursor = cursor->pRight;
+        }
+        else {
+            return &(cursor->data);
+        }
+    }
+    return &(nearest->data);
 }
 
 // =====================================
