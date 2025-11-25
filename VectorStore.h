@@ -209,7 +209,11 @@ class VectorStore {
 
         VectorRecord* findVectorNearestToDistance(double targetDistance) const; 
 
+        // MANUALLY ADDED VARIABLES
+        int currentMaxID;
+
         // MANUALLY DEFINED FUNCTIONS 
+        int findMaxID(AVLTree<double, VectorRecord>::AVLNode* node);
         double calculateNorm(const std::vector<float>& vector);
         void getAllRecords(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord>& list);
         void getAllRecordPointers(AVLTree<double, VectorRecord>::AVLNode* node, std::vector<VectorRecord*>& list);

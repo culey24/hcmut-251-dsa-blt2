@@ -946,10 +946,12 @@ VectorStore::VectorStore(int dimension,
     this->count = 0;
     this->averageDistance = 0.0;
     this->rootVector = nullptr;
+    this->currentMaxID = 0;
 }   
 
 VectorStore::~VectorStore() {
     this->clear();
+    if (this->referenceVector) delete this->referenceVector;
 }
 
 int VectorStore::size() {
@@ -961,8 +963,22 @@ bool VectorStore::empty() {
 }
 
 void VectorStore::clear() {
-    this->vectorStore->clear();
-    this->normIndex->clear();
+    if (this->vectorStore != nullptr && !this->vectorStore->empty()) {
+        vector<VectorRecord> records;
+        getAllRecords(this->vectorStore->root, records);
+        
+        for (const VectorRecord& record : records) {
+            if (record.vector != nullptr) {
+                delete record.vector; 
+            }
+        }
+    }
+    if (this->vectorStore) this->vectorStore->clear();
+    if (this->normIndex) this->normIndex->clear();
+
+    count = 0;
+    averageDistance = 0;
+    rootVector = nullptr;
 }
 
 std::vector<float>* VectorStore::preprocessing(std::string rawText) {
@@ -1010,7 +1026,7 @@ void VectorStore::addText(string rawText) {
     std::vector<float>* preprocessedVector = preprocessing(rawText);
 
     VectorRecord record;
-    record.id = this->count;
+    record.id = ++this->currentMaxID;
     record.rawText = rawText;
     record.rawLength = rawText.size();
     record.vector = preprocessedVector;
@@ -1098,11 +1114,20 @@ VectorRecord* VectorStore::findNewRoot(AVLTree<double, VectorRecord>::AVLNode* n
     return newRoot;
 }
 
+int VectorStore::findMaxID(AVLTree<double, VectorRecord>::AVLNode* node) {
+    if (node == nullptr) return 0;
+    int leftMax = findMaxID(node->pLeft);
+    int rightMax = findMaxID(node->pRight);
+    int maxChild = (leftMax > rightMax) ? leftMax : rightMax;
+    return (node->data.id > maxChild) ? node->data.id : maxChild;
+}
+
 bool VectorStore::removeAt(int index) {
     if (index < 0 || index >= this->count) throw std::out_of_range("Index is invalid!");
     VectorRecord* unlucky = getVector(index);
     double distanceFromReference = unlucky->distanceFromReference;
     double norm = calculateNorm(*unlucky->vector);
+    int deleteID = unlucky->id;
     std::vector<float>* unluckyVector = unlucky->vector;
     bool oldRootRemoved = false;
     if (this->vectorStore->root != nullptr) {
@@ -1118,6 +1143,8 @@ bool VectorStore::removeAt(int index) {
         this->averageDistance = 0;
     }
     this->count--;
+    if (this->count == 0) this->currentMaxID = -1;
+    else if (deleteID == this->currentMaxID) this->currentMaxID = findMaxID(this->vectorStore->root);
     if (unluckyVector != nullptr) delete unluckyVector;
     if (this->count > 0 && oldRootRemoved) this->rootVector = findNewRoot(this->vectorStore->root);
     else if (this->count == 0) {
