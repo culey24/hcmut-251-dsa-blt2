@@ -374,7 +374,9 @@ bool AVLTree<K, T>::contains(const K& key) const {
 template <class K, class T>
 int AVLTree<K, T>::getHeightHelper(AVLNode* node) const {
     if (node == nullptr) return 0;
-    return 1 + max(getHeightHelper(node->pLeft), getHeightHelper(node->pRight));
+    int leftHeight = getHeightHelper(node->pLeft);
+    int rightHeight = getHeightHelper(node->pRight);
+    return 1 + (leftHeight > rightHeight ? leftHeight : rightHeight);
 }
 
 template <class K, class T>
@@ -1024,8 +1026,8 @@ void VectorStore::addText(string rawText) {
     if (this->vectorStore->empty()) this->vectorStore->insert(record.distanceFromReference, record);
     else {
         double currentRootDistance = this->vectorStore->root->key;
-        double deltaNewDistance = abs(record.distanceFromReference - this->averageDistance);
-        double deltaRootDistance = abs(currentRootDistance - this->averageDistance);
+        double deltaNewDistance = std::abs(record.distanceFromReference - this->averageDistance);
+        double deltaRootDistance = std::abs(currentRootDistance - this->averageDistance);
         if (deltaNewDistance < deltaRootDistance) {
             std::vector<VectorRecord> allRecords;
             getAllRecords(this->vectorStore->root, allRecords);
@@ -1076,10 +1078,10 @@ int VectorStore::getId(int index) {
 VectorRecord* VectorStore::findNewRoot(AVLTree<double, VectorRecord>::AVLNode* node) {
     if (node == nullptr) return nullptr;
     VectorRecord* newRoot = &(node->data);
-    double minDelta = abs(node->data.distanceFromReference - this->averageDistance);
+    double minDelta = std::abs(node->data.distanceFromReference - this->averageDistance);
     VectorRecord* leftCase = findNewRoot(node->pLeft);
     if (leftCase != nullptr) {
-        double leftDelta = abs(leftCase->distanceFromReference - this->averageDistance);
+        double leftDelta = std::abs(leftCase->distanceFromReference - this->averageDistance);
         if (leftDelta < minDelta) {
             minDelta = leftDelta;
             newRoot = leftCase;
@@ -1087,7 +1089,7 @@ VectorRecord* VectorStore::findNewRoot(AVLTree<double, VectorRecord>::AVLNode* n
     }
     VectorRecord* rightCase = findNewRoot(node->pRight);
     if (rightCase != nullptr) {
-        double rightDelta = abs(rightCase->distanceFromReference - this->averageDistance);
+        double rightDelta = std::abs(rightCase->distanceFromReference - this->averageDistance);
         if (rightDelta < minDelta) {
             minDelta = rightDelta;
             newRoot = rightCase;
@@ -1149,9 +1151,9 @@ void VectorStore::setReferenceVector(const std::vector<float>& newReference) {
     sorter.sort();
 
     int rootIndex = 0;
-    double minDelta = abs(records[0].distanceFromReference - this->averageDistance);
+    double minDelta = std::abs(records[0].distanceFromReference - this->averageDistance);
     for (int i = 1; i < records.size(); i++) {
-        double delta = abs(records[i].distanceFromReference - this->averageDistance);
+        double delta = std::abs(records[i].distanceFromReference - this->averageDistance);
         if (delta < minDelta) {
             rootIndex = i;
             minDelta = delta;
@@ -1228,7 +1230,7 @@ double VectorStore::cosineSimilarity(const std::vector<float>& v1, const std::ve
 double VectorStore::l1Distance(const std::vector<float>& v1, const std::vector<float>& v2) {
     double sum = 0;
     for (int i = 0; i < v1.size(); i++) {
-        sum += abs(v1[i] - v2[i]);
+        sum += std::abs(v1[i] - v2[i]);
     }
     return sum;
 }
@@ -1247,7 +1249,7 @@ double VectorStore::estimateD_Linear(const std::vector<float>& query,
                         double c0_bias, 
                         double c1_slope) {
     double d_r = l2Distance(query, reference);
-    double D = abs(d_r - averageDistance) + c1_slope * averageDistance * k + c0_bias;
+    double D = std::abs(d_r - averageDistance) + c1_slope * averageDistance * k + c0_bias;
     if (D > 0) return D;
     else return 0;
 }
@@ -1363,7 +1365,7 @@ double VectorStore::cosineSimilarityConst(const std::vector<float>& v1, const st
 double VectorStore::l1DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
     double sum = 0;
     for (int i = 0; i < v1.size(); i++) {
-        sum += abs(v1[i] - v2[i]);
+        sum += std::abs(v1[i] - v2[i]);
     }
     return sum;
 }
@@ -1485,9 +1487,9 @@ VectorRecord* VectorStore::findVectorNearestToDistance(double targetDistance) co
     if (this->vectorStore->empty()) return nullptr;
     AVLTree<double, VectorRecord>::AVLNode* cursor = this->vectorStore->root;
     AVLTree<double, VectorRecord>::AVLNode* nearest = cursor;
-    double minDelta = abs(cursor->key - targetDistance);
+    double minDelta = std::abs(cursor->key - targetDistance);
     while (cursor != nullptr) {
-        double delta = abs(cursor->key - targetDistance);
+        double delta = std::abs(cursor->key - targetDistance);
         if (delta < minDelta) {
             minDelta = delta;
             nearest = cursor;
