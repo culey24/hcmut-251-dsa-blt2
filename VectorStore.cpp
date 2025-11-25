@@ -1039,6 +1039,7 @@ void VectorStore::addText(string rawText) {
             this->vectorStore->insert(record.distanceFromReference, record);
         }
     }
+    if (this->vectorStore->root != nullptr) this->rootVector = &(this->vectorStore->root->data);
     this->normIndex->insert(calculateNorm(*preprocessedVector), record);
     return;
 }
@@ -1116,10 +1117,11 @@ bool VectorStore::removeAt(int index) {
     }
     this->count--;
     if (unluckyVector != nullptr) delete unluckyVector;
-    if (this->count > 0 && oldRootRemoved) {
-        VectorRecord* newRoot = findNewRoot(this->vectorStore->root);
+    if (this->count > 0 && oldRootRemoved) this->rootVector = findNewRoot(this->vectorStore->root);
+    else if (this->count == 0) {
+        this->averageDistance = 0;
+        this->rootVector = nullptr;
     }
-    else if (this->count == 0) this->averageDistance = 0;
     return true;
 } 
 
@@ -1162,6 +1164,7 @@ void VectorStore::setReferenceVector(const std::vector<float>& newReference) {
     newRoot->pLeft = rebuildAVL(records, 0, rootIndex - 1);
     newRoot->pRight = rebuildAVL(records, rootIndex + 1, records.size() - 1);
     this->vectorStore->root = newRoot;
+    if (this->vectorStore->root != nullptr) this->rootVector = &(this->vectorStore->root->data);
 }
 
 std::vector<float>* VectorStore::getReferenceVector() const {
@@ -1278,6 +1281,45 @@ int VectorStore::findNearest(const vector<float>& query, string metric) {
     int bestID = -1;
     findNearestHelper(this->vectorStore->root, query, metric, minDistance, bestID);
     return bestID;
+}
+
+void VectorStore::RBTSearchWithRange(RedBlackTree<double, VectorRecord>::RBTNode* node, double minK, double maxK, std::vector<VectorRecord*>& candidates) {
+    if (node == nullptr) return;
+    double nodeKey = node->key;
+    if (nodeKey >= minK) RBTSearchWithRange(node->left, minK, maxK, candidates);
+    if (nodeKey >= minK && nodeKey <= maxK) candidates.push_back(&(node->data));
+    if (nodeKey <= maxK) RBTSearchWithRange(node->right, minK, maxK, candidates);
+    return;
+}
+
+int* VectorStore::topKNearest(const std::vector<float>& query, int k, std::string metric) {
+    if (metric != "cosine" && metric != "l1" && metric != "euclidean") throw std::runtime_error("invalid_metric");
+    if (k <= 0 || k > this->count) throw invalid_k_value();
+    double n_q = 0.0;
+    for (float x : query) n_q += x * x;
+    n_q = sqrt(n_q);
+    double D = estimateD_Linear(query, k, this->averageDistance, *this->referenceVector);
+    vector<VectorRecord*> candidates;
+    double lower = n_q - D;
+    double upper = n_q + D;
+    RBTSearchWithRange(this->normIndex->root, lower, upper, candidates);
+    cout << "Value m: " << candidates.size() << endl;
+    vector<Candidate> rankedCandidates;
+    rankedCandidates.reserve(candidates.size());
+    for (VectorRecord* rec : candidates) {
+        Candidate candidate;
+        candidate.distance = calculateMetric(query, *(rec->vector), metric);
+        candidate.id = rec->id;
+        rankedCandidates.push_back(candidate);
+    }
+    Sorter<Candidate> sorter(rankedCandidates.data(), rankedCandidates.size());
+    sorter.sort();
+    int resultSize = (rankedCandidates.size() < k) ? rankedCandidates.size() : k;
+    int* result = new int[resultSize];
+    for (int i = 0; i < resultSize; ++i) {
+        result[i] = rankedCandidates[i].id;
+    }
+    return result;
 }
 
 void VectorStore::rangeQueryFromRootHelper(AVLTree<double, VectorRecord>::AVLNode* node, 
@@ -1413,10 +1455,14 @@ double VectorStore::getMinDistance() const {
 }
 
 VectorRecord VectorStore::computeCentroid(const std::vector<VectorRecord*>& records) const {
-    if (records.empty()) {
-       return VectorRecord(-1, "", nullptr, 0.0);    
-    }
     VectorRecord centroid;
+    if (records.empty()) {
+        centroid.id = -1;
+        centroid.rawText = "centroid";
+        centroid.vector = new vector<float>(this->dimension, 0.0);
+        centroid.distanceFromReference = 0.0;
+        return centroid; 
+    }
     vector<float>* sumVector = new vector<float>(this->dimension, 0);
     for (VectorRecord* record : records) {
         const vector<float>& vector = *record->vector;

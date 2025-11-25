@@ -227,7 +227,8 @@ class VectorStore {
         double l2DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const;
         void rangeQueryHelper(AVLTree<double, VectorRecord>::AVLNode* node, const std::vector<float>& query, double radius, std::string metric, std::vector<int>& list) const;
         void boundingBoxHelper(AVLTree<double, VectorRecord>::AVLNode* node, const std::vector<float>& minBound, const std::vector<float>& maxBound, std::vector<int>& result) const;
-        
+        void RBTSearchWithRange(RedBlackTree<double, VectorRecord>::RBTNode* node, double minK, double maxK, std::vector<VectorRecord*>& candidates);
+
     public:
         VectorStore(int dimension,
                     std::vector<float>* (*embeddingFunction)(const std::string&),
@@ -287,5 +288,15 @@ public:
     void sort();
 };
 
+struct Candidate {
+    double distance;
+    int id;
+    bool operator<(const Candidate& other) const {
+        if (std::abs(distance - other.distance) < 1e-9) {
+            return id < other.id; 
+        }
+        return distance < other.distance;
+    }
+};
 
 #endif // VECTORSTORE_H
