@@ -1,10 +1,5 @@
 // NOTE: Per assignment rules, only this single include is allowed here.
 #include "VectorStore.h"
-#include "main.h"
-#include <cmath>
-#include <cstdlib>
-#include <stdexcept>
-#include <vector>
 
 // =====================================
 // Helper functions
@@ -574,29 +569,21 @@ void RedBlackTree<K, T>::rotateRight(RBTNode* node) {
 template <class K, class T> 
 typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBoundNode(const K &key) const {
     RBTNode* cursor = this->root;
-    RBTNode* result = nullptr;
     while (cursor != nullptr) {
-        if (cursor->key >= key) {
-            result = cursor;
-            cursor = cursor->left;
-        }
-        else cursor = cursor->right;
+        if (cursor->key >= key) return cursor;
+        cursor = cursor->right;
     }
-    return result;
+    return nullptr;
 }
 
 template <class K, class T> 
 typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::upperBoundNode(const K &key) const {
     RBTNode* cursor = this->root;
-    RBTNode* result = nullptr;
     while (cursor != nullptr) {
-        if (cursor->key > key) {
-            result = cursor;
-            cursor = cursor->left;
-        }
-        else cursor = cursor->right;
+        if (cursor->key > key) return cursor;
+        cursor = cursor->right;
     }
-    return result;
+    return nullptr;
 }
 
 template <class K, class T>
@@ -1323,7 +1310,7 @@ void VectorStore::RBTSearchWithRange(RedBlackTree<double, VectorRecord>::RBTNode
 
 // USING STRUCT CANDIDATE for Id and uhh distance storing
 int* VectorStore::topKNearest(const std::vector<float>& query, int k, std::string metric) {
-    if (metric != "cosine" && metric != "l1" && metric != "euclidean") throw std::runtime_error("invalid_metric");
+    if (metric != "cosine" && metric != "manhattan" && metric != "euclidean") throw invalid_metric();
     if (k <= 0 || k > this->count) throw invalid_k_value();
     double n_q = 0.0;
     for (float x : query) n_q += x * x;
