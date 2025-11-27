@@ -1,8 +1,5 @@
 #ifndef VECTORSTORE_H
 #define VECTORSTORE_H
-
-#include <complex>
-#include <vector>
 #pragma once
 // NOTE: Per assignment rules, only this single include is allowed here.
 #include "main.h"
