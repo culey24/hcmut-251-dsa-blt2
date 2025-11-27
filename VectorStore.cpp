@@ -992,7 +992,7 @@ void VectorStore::clear() {
     if (this->normIndex) this->normIndex->clear();
 
     count = 0;
-    averageDistance = 0;
+    averageDistance = 0.0;
     rootVector = nullptr;
 }
 
@@ -1156,7 +1156,7 @@ bool VectorStore::removeAt(int index) {
         this->averageDistance = (oldTotalDistance - distanceFromReference) / (this->count - 1);
     }
     else {
-        this->averageDistance = 0;
+        this->averageDistance = 0.0;
     }
     this->count--;
     if (this->count == 0) this->currentMaxID = -1;
@@ -1164,7 +1164,7 @@ bool VectorStore::removeAt(int index) {
     if (unluckyVector != nullptr) delete unluckyVector;
     if (this->count > 0 && oldRootRemoved) this->rootVector = findNewRoot(this->vectorStore->root);
     else if (this->count == 0) {
-        this->averageDistance = 0;
+        this->averageDistance = 0.0;
         this->rootVector = nullptr;
     }
     return true;
@@ -1173,7 +1173,7 @@ bool VectorStore::removeAt(int index) {
 void VectorStore::recalculateAverageDistance() {
     std::vector<VectorRecord> records;
     getAllRecords(this->vectorStore->root, records);
-    double totalDistance = 0;
+    double totalDistance = 0.0;
     for (VectorRecord& record : records) {
         record.distanceFromReference = l2Distance(*record.vector, *this->referenceVector);
         totalDistance += record.distanceFromReference;
@@ -1258,9 +1258,9 @@ std::vector<VectorRecord*> VectorStore::getAllVectorsSortedByDistance() const {
 }
 
 double VectorStore::cosineSimilarity(const std::vector<float>& v1, const std::vector<float>& v2) {
-    double product = 0;
-    double v1Length = 0;
-    double v2Length = 0;
+    double product = 0.0;
+    double v1Length = 0.0;
+    double v2Length = 0.0;
     for (int i = 0; i < v1.size(); i++) {
         product += v1[i] * v2[i];
         v1Length += v1[i] * v1[i];
@@ -1436,7 +1436,7 @@ void VectorStore::rangeQueryHelper(AVLTree<double, VectorRecord>::AVLNode* node,
     if (node == nullptr) return;
     rangeQueryHelper(node->pLeft, query, radius, metric, list);
     double distance = calculateMetricConst(query, *node->data.vector, metric);
-    if (distance <= radius) list.push_back(node->data.id);
+    if (distance < radius) list.push_back(node->data.id);
     rangeQueryHelper(node->pRight, query, radius, metric, list);
 }
 
