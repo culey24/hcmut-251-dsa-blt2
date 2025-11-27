@@ -1266,12 +1266,12 @@ double VectorStore::cosineSimilarity(const std::vector<float>& v1, const std::ve
         v1Length += v1[i] * v1[i];
         v2Length += v2[i] * v2[i];
     }
-    if (v1Length == 0 || v2Length == 0) return 0;
-    return product/(sqrt(v1Length) + sqrt(v2Length));
+    if (v1Length == 0.0 || v2Length == 0.0) return 0.0;
+    return product/(sqrt(v1Length) * sqrt(v2Length));
 }
 
 double VectorStore::l1Distance(const std::vector<float>& v1, const std::vector<float>& v2) {
-    double sum = 0;
+    double sum = 0.0;
     for (int i = 0; i < v1.size(); i++) {
         sum += std::abs(v1[i] - v2[i]);
     }
@@ -1279,7 +1279,7 @@ double VectorStore::l1Distance(const std::vector<float>& v1, const std::vector<f
 }
 
 double VectorStore::l2Distance(const std::vector<float>& v1, const std::vector<float>& v2) {
-    double sum = 0;
+    double sum = 0.0;
     for (int i = 0; i < v1.size(); i++) {
         sum += (v1[i] - v2[i]) * (v1[i] - v2[i]);
     }
@@ -1293,8 +1293,8 @@ double VectorStore::estimateD_Linear(const std::vector<float>& query,
                         double c1_slope) {
     double d_r = l2Distance(query, reference);
     double D = std::abs(d_r - averageDistance) + c1_slope * averageDistance * k + c0_bias;
-    if (D > 0) return D;
-    else return 0;
+    if (D > 0.0) return D;
+    else return 0.0;
 }
 
 double VectorStore::calculateMetric(const std::vector<float>& v1, const std::vector<float>& v2, std::string metric) {
@@ -1393,20 +1393,20 @@ int* VectorStore::rangeQueryFromRoot(double minDist, double maxDist) const {
 }
 
 double VectorStore::cosineSimilarityConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
-    double product = 0;
-    double v1Length = 0;
-    double v2Length = 0;
+    double product = 0.0;
+    double v1Length = 0.0;
+    double v2Length = 0.0;
     for (int i = 0; i < v1.size(); i++) {
         product += v1[i] * v2[i];
         v1Length += v1[i] * v1[i];
         v2Length += v2[i] * v2[i];
     }
-    if (v1Length == 0 || v2Length == 0) return 0;
-    return product/(sqrt(v1Length) + sqrt(v2Length));
+    if (v1Length == 0.0 || v2Length == 0.0) return 0.0;
+    return product/(sqrt(v1Length) * sqrt(v2Length));
 }
 
 double VectorStore::l1DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
-    double sum = 0;
+    double sum = 0.0;
     for (int i = 0; i < v1.size(); i++) {
         sum += std::abs(v1[i] - v2[i]);
     }
@@ -1414,7 +1414,7 @@ double VectorStore::l1DistanceConst(const std::vector<float>& v1, const std::vec
 }
 
 double VectorStore::l2DistanceConst(const std::vector<float>& v1, const std::vector<float>& v2) const {
-    double sum = 0;
+    double sum = 0.0;
     for (int i = 0; i < v1.size(); i++) {
         sum += (v1[i] - v2[i]) * (v1[i] - v2[i]);
     }
