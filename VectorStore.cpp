@@ -874,9 +874,37 @@ void RedBlackTree<K, T>::remove(const K& key) {
     if (cursorColor == BLACK) removeRebalance(child, parent);
 }
 
+template <class K, class T> 
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBoundHelper(const K &key) const {
+    RBTNode* cursor = this->root;
+    RBTNode* result = nullptr; 
+    while (cursor != nullptr) {
+        if (cursor->key >= key) {
+            result = cursor;      
+            cursor = cursor->left; 
+        } 
+        else cursor = cursor->right;
+    }
+    return result;
+}
+
+template <class K, class T> 
+typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::upperBoundHelper(const K &key) const {
+    RBTNode* cursor = this->root;
+    RBTNode* result = nullptr; 
+    while (cursor != nullptr) {
+        if (cursor->key > key) {
+            result = cursor;       
+            cursor = cursor->left; 
+        } 
+        else cursor = cursor->right; 
+    }
+    return result;
+}
+
 template <class K, class T>
 typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBound(const K& key, bool& found) const {
-    RBTNode* temp = lowerBoundNode(key);
+    RBTNode* temp = lowerBoundHelper(key);
     if (temp == nullptr) {
         found = false;
         return nullptr;
@@ -889,7 +917,7 @@ typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::lowerBound(const K& ke
 
 template <class K, class T>
 typename RedBlackTree<K, T>::RBTNode* RedBlackTree<K, T>::upperBound(const K& key, bool& found) const {
-    RBTNode* vendih = upperBoundNode(key);
+    RBTNode* vendih = upperBoundHelper(key);
     if (vendih == nullptr) {
         found = false;
         return nullptr;

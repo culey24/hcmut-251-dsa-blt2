@@ -136,6 +136,9 @@ protected:
     void removeRebalanceRCase(RBTNode*& node, RBTNode*& parent);
     void removeRebalance(RBTNode*& node, RBTNode*& parent);
 
+    RBTNode* lowerBoundHelper(const K &key) const;
+    RBTNode* upperBoundHelper(const K &key) const;
+
 public:
     RedBlackTree();
     ~RedBlackTree();
