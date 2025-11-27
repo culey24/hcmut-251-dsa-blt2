@@ -1046,7 +1046,8 @@ void VectorStore::addText(string rawText) {
     record.rawLength = rawText.size();
     record.vector = preprocessedVector;
     record.distanceFromReference = l2Distance(*preprocessedVector, *referenceVector);
-    
+    record.norm = calculateNorm(*preprocessedVector);
+
     if (this->count == 0) this->averageDistance = record.distanceFromReference;
     else {
         double oldTotalDistance = this->averageDistance * this->count;
@@ -1073,7 +1074,7 @@ void VectorStore::addText(string rawText) {
         }
     }
     if (this->vectorStore->root != nullptr) this->rootVector = &(this->vectorStore->root->data);
-    this->normIndex->insert(calculateNorm(*preprocessedVector), record);
+    this->normIndex->insert(record.norm, record);
     return;
 }
 
@@ -1141,7 +1142,7 @@ bool VectorStore::removeAt(int index) {
     if (index < 0 || index >= this->count) throw std::out_of_range("Index is invalid!");
     VectorRecord* unlucky = getVector(index);
     double distanceFromReference = unlucky->distanceFromReference;
-    double norm = calculateNorm(*unlucky->vector);
+    double norm = unlucky->norm;
     int deleteID = unlucky->id;
     std::vector<float>* unluckyVector = unlucky->vector;
     bool oldRootRemoved = false;
@@ -1506,9 +1507,10 @@ VectorRecord VectorStore::computeCentroid(const std::vector<VectorRecord*>& reco
         centroid.rawText = "centroid";
         centroid.vector = new vector<float>(this->dimension, 0.0);
         centroid.distanceFromReference = 0.0;
+        centroid.norm = 0.0;
         return centroid; 
     }
-    vector<float>* sumVector = new vector<float>(this->dimension, 0);
+    vector<float>* sumVector = new vector<float>(this->dimension, 0.0);
     for (VectorRecord* record : records) {
         const vector<float>& vector = *record->vector;
         for (int i = 0; i < this->dimension; i++) {

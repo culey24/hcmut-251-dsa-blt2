@@ -1,6 +1,7 @@
 #ifndef VECTORSTORE_H
 #define VECTORSTORE_H
 
+#include <complex>
 #include <vector>
 #pragma once
 // NOTE: Per assignment rules, only this single include is allowed here.
@@ -167,20 +168,24 @@ class VectorRecord {
         std::string rawText;                
         int rawLength;                      
         std::vector<float>* vector;         
-        double distanceFromReference;       
+        double distanceFromReference;     
+        double norm;  
 
         VectorRecord()
-            : id(-1), rawLength(0), vector(nullptr), distanceFromReference(0.0) {}
+            : id(-1), rawLength(0), vector(nullptr), distanceFromReference(0.0), norm(0.0) {}
 
         VectorRecord(int _id,
                     const std::string& _rawText,
                     std::vector<float>* _vec,
-                    double _dist)
+                    double _dist, double norm=0.0)
             : id(_id),
             rawText(_rawText),
             rawLength(static_cast<int>(_rawText.size())),
             vector(_vec),
-            distanceFromReference(_dist) {}
+            distanceFromReference(_dist),
+            norm(norm)
+            {
+            }
 
         // Overload operator << to print only the id
         friend std::ostream& operator<<(std::ostream& os, const VectorRecord& record);
