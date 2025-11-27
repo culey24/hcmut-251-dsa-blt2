@@ -1341,30 +1341,84 @@ void VectorStore::RBTSearchWithRange(RedBlackTree<double, VectorRecord>::RBTNode
 int* VectorStore::topKNearest(const std::vector<float>& query, int k, std::string metric) {
     if (metric != "cosine" && metric != "manhattan" && metric != "euclidean") throw invalid_metric();
     if (k <= 0 || k > this->count) throw invalid_k_value();
+
     double n_q = 0.0;
     for (float x : query) n_q += x * x;
     n_q = sqrt(n_q);
+    
     double D = estimateD_Linear(query, k, this->averageDistance, *this->referenceVector);
+    
     vector<VectorRecord*> candidates;
     double lower = n_q - D;
     double upper = n_q + D;
+    
     RBTSearchWithRange(this->normIndex->root, lower, upper, candidates);
+    
     cout << "Value m: " << candidates.size() << endl;
-    vector<Candidate> rankedCandidates;
-    rankedCandidates.reserve(candidates.size());
+
+    vector<Candidate> topKHeap;
+    topKHeap.reserve(k);
+
     for (VectorRecord* rec : candidates) {
-        Candidate candidate;
-        candidate.distance = calculateMetric(query, *(rec->vector), metric);
-        candidate.id = rec->id;
-        rankedCandidates.push_back(candidate);
+        double dist = calculateMetric(query, *(rec->vector), metric);
+        
+        if (topKHeap.size() < k) {
+            Candidate temp; 
+            temp.distance = dist; 
+            temp.id = rec->id;
+            topKHeap.push_back(temp);
+
+            int child = topKHeap.size() - 1;
+            while (child > 0) {
+                int parent = (child - 1) / 2;
+                if (topKHeap[child].distance > topKHeap[parent].distance) {
+                    Candidate swapTemp = topKHeap[child];
+                    topKHeap[child] = topKHeap[parent];
+                    topKHeap[parent] = swapTemp;
+                    child = parent;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            if (dist < topKHeap[0].distance) {
+                topKHeap[0].distance = dist;
+                topKHeap[0].id = rec->id;
+
+                int parent = 0;
+                int n = topKHeap.size();
+                while (true) {
+                    int left = 2 * parent + 1;
+                    int right = 2 * parent + 2;
+                    int largest = parent;
+
+                    if (left < n && topKHeap[left].distance > topKHeap[largest].distance)
+                        largest = left;
+                    if (right < n && topKHeap[right].distance > topKHeap[largest].distance)
+                        largest = right;
+
+                    if (largest != parent) {
+                        Candidate swapTemp = topKHeap[parent];
+                        topKHeap[parent] = topKHeap[largest];
+                        topKHeap[largest] = swapTemp;
+                        parent = largest;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
     }
-    Sorter<Candidate> sorter(rankedCandidates.data(), rankedCandidates.size());
+
+    Sorter<Candidate> sorter(topKHeap.data(), topKHeap.size());
     sorter.sort();
-    int resultSize = (rankedCandidates.size() < k) ? rankedCandidates.size() : k;
+
+    int resultSize = topKHeap.size();
     int* result = new int[resultSize];
     for (int i = 0; i < resultSize; ++i) {
-        result[i] = rankedCandidates[i].id;
+        result[i] = topKHeap[i].id;
     }
+    
     return result;
 }
 
